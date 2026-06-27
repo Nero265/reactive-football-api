@@ -27,14 +27,18 @@ namespace FootballLineups.Rx
         public IObservable<FixtureData> GetFixturesWithLineups(List<int> fixtureIds)
         {
             return Observable
-                   .Interval(TimeSpan.FromSeconds(30))
-                   .StartWith(0)
-                   .SelectMany(_ => fixtureIds.ToObservable())
-                   .SelectMany(id => FetchFixture(id))
-                   .Where(f => f.Players.Count > 0)
-                   .Do(f => _coordinator.Tell(new UpdateLineup(f.FixtureId, f.Name, f.Players)))
-                   .SubscribeOn(NewThreadScheduler.Default)
-                   .ObserveOn(TaskPoolScheduler.Default);
+                .Interval(TimeSpan.FromSeconds(30))
+                .StartWith(0)
+                .SelectMany(_ => fixtureIds.ToObservable())
+                // NewThreadScheduler — svaki API poziv ide na novu nit
+                // idealno za spore I/O operacije koje ne troše CPU
+                .SelectMany(id => FetchFixture(id)
+                    .SubscribeOn(NewThreadScheduler.Default))
+                .Where(f => f.Players.Count > 0)
+                .Do(f => _coordinator.Tell(new UpdateLineup(f.FixtureId, f.Name, f.Players)))
+                // TaskPoolScheduler — obrada rezultata ide na ThreadPool
+                // idealno za kratkotrajne CPU operacije
+                .ObserveOn(TaskPoolScheduler.Default);
         }
 
         private IObservable<FixtureData> FetchFixture(int fixtureId)

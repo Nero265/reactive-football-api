@@ -33,7 +33,26 @@ if (fixtureIds.Count == 0)
 
 Console.WriteLine($"[Main] Pracenje {fixtureIds.Count} utakmica: {string.Join(", ", fixtureIds)}");
 
-using var system = ActorSystem.Create("football-system");
+using var system = ActorSystem.Create("football-system",
+    Akka.Configuration.ConfigurationFactory.ParseString(@"
+        akka {
+            actor {
+                default-dispatcher {
+                    type = ForkJoinDispatcher
+                    throughput = 10
+                    dedicated-thread-pool {
+                        thread-count = 4
+                        threadtype = background
+                    }
+                }
+                deployment {
+                    /coordinator {
+                        dispatcher = akka.actor.default-dispatcher
+                    }
+                }
+            }
+        }
+    "));
 var coordinator = system.ActorOf(CoordinatorActor.Props(), "coordinator");
 
 Console.WriteLine("[Main] Akka sistem pokrenut.");
